@@ -11,20 +11,24 @@ composer require servizehub/servizehub-sdk
 
 ```php
 <?php
-
-require 'vendor/autoload.php';
+require __DIR__ . '/vendor/autoload.php';
 
 use ServizeHub\VendorClient;
 
-$client = new VendorClient("encryptedkey");
+$config = ['apiKey' => 'encryptedkey'];
+$client = new VendorClient($config);
 
-$result = $client->sendBooking(
-    "2026-04-01",
-    "Haircut",
-    "available"
-);
+// Single booking
+$booking = [
+    'date' => '2026-04-05',
+    'serviceType' => 'cleaning',
+    'status' => 'available'
+];
 
-print_r($result);
+// Send the booking
+$response = $client->sendBooking($booking);
+print_r($response);
+
 ```
 
 ## 📩 License
