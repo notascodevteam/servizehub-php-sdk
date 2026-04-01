@@ -1,115 +1,100 @@
 <?php
 
-namespace ServizeHub;
+class VendorClient {
+    private $apiKey;
 
-class VendorClient
-{
-    private string $apiKey;
-    private string $baseUrl = "https://servizehubuserdev.notasco.in";
-
-    public function __construct(string $apiKey)
-    {
-        if (empty($apiKey)) {
-            throw new \InvalidArgumentException("API key is required");
+    public function __construct($config) {
+        if (empty($config['apiKey'])) {
+            throw new Exception("API key is required");
         }
-
-        $this->apiKey = $apiKey;
+        $this->apiKey = $config['apiKey'];
     }
 
-    // Helper function to validate YYYY-MM-DD date
-    private function isValidDate(string $date): bool
-    {
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return false;
-        }
-
-        $parts = explode('-', $date);
-        return checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0]);
+    // Validate date in YYYY-MM-DD format
+    private function isValidDate($date) {
+        $d = DateTime::createFromFormat('Y-m-d', $date);
+        return $d && $d->format('Y-m-d') === $date;
     }
 
-    // Send a single booking
-    public function sendBooking(string $date, string $serviceType, string $status): array
-    {
-        if (empty($date) || empty($serviceType) || empty($status)) {
-            throw new \InvalidArgumentException("All booking details are required");
+    public function sendBooking($booking) {
+        $date = $booking['date'] ?? null;
+        $serviceType = $booking['serviceType'] ?? null;
+        $status = $booking['status'] ?? null;
+
+        if (!$date || !$serviceType || !$status) {
+            throw new Exception("All booking details are required");
         }
 
         if (!$this->isValidDate($date)) {
-            throw new \InvalidArgumentException("Invalid date format, expected YYYY-MM-DD");
+            throw new Exception("Invalid date format, expected YYYY-MM-DD");
         }
 
         $validStatuses = ["available", "unavailable"];
         if (!in_array($status, $validStatuses)) {
-            throw new \InvalidArgumentException("Invalid status value");
+            throw new Exception("Invalid status value");
         }
 
-        $payload = [
-            "date" => $date,
-            "serviceType" => $serviceType,
-            "status" => $status
+        $url = "https://servizehubuserdev.notasco.in/external/capture-availability";
+        $payload = json_encode([
+            'date' => $date,
+            'serviceType' => $serviceType,
+            'status' => $status
+        ]);
+
+        $options = [
+            "http" => [
+                "header"  => "Content-Type: application/json\r\n" .
+                             "servizhub-api-key: " . $this->apiKey . "\r\n",
+                "method"  => "POST",
+                "content" => $payload,
+                "ignore_errors" => true // to capture error response body
+            ]
         ];
 
-        $ch = curl_init("{$this->baseUrl}/external/capture-availability");
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Content-Type: application/json",
-            "servizhub-api-key: {$this->apiKey}"
-        ]);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        
-        curl_setopt($ch, CURLOPT_CAINFO, "C:\\php\\extras\\ssl\\cacert.pem");
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        $context  = stream_context_create($options);
+        $response = file_get_contents($url, false, $context);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-        if (curl_errno($ch)) {
-            $error = curl_error($ch);
-            curl_close($ch);
-            throw new \RuntimeException("Network error: $error");
+        if ($response === false) {
+            throw new Exception("Network error while sending booking");
         }
 
-        curl_close($ch);
         $data = json_decode($response, true);
+        $httpCode = 0;
+
+        if (isset($http_response_header)) {
+            // Get HTTP status code from first response header
+            preg_match('#HTTP/\d+\.\d+\s+(\d+)#', $http_response_header[0], $matches);
+            $httpCode = intval($matches[1]);
+        }
 
         if ($httpCode < 200 || $httpCode >= 300) {
-            $message = $data['message'] ?? "Booking failed";
-            throw new \RuntimeException($message);
+            $errorMsg = $data['message'] ?? "Booking failed";
+            throw new Exception($errorMsg);
         }
 
         return ["message" => "Booking availability sent successfully"];
     }
 
-    // Send multiple bookings
-    public function sendMultipleBookings(array $bookings): array
-    {
-        if (empty($bookings)) {
-            throw new \InvalidArgumentException("Bookings array is required");
+    public function sendMultipleBookings($bookings) {
+        if (!is_array($bookings) || count($bookings) === 0) {
+            throw new Exception("Bookings array is required");
         }
 
         $failedBookings = [];
 
         foreach ($bookings as $booking) {
-            $date = $booking['date'] ?? null;
-            $serviceType = $booking['serviceType'] ?? null;
-            $status = $booking['status'] ?? null;
-
             try {
-                $this->sendBooking($date, $serviceType, $status);
-            } catch (\Exception $e) {
-                $failedBookings[] = array_merge($booking, ["error" => $e->getMessage()]);
+                $this->sendBooking($booking);
+            } catch (Exception $e) {
+                $failedBookings[] = array_merge($booking, ['error' => $e->getMessage()]);
             }
         }
 
-        if (empty($failedBookings)) {
-            return ["message" => "Booking availability sent successfully"];
-        } else {
-            return [
-                "message" => "Some bookings failed",
-                "failedBookings" => $failedBookings
-            ];
-        }
+        return empty($failedBookings)
+            ? ["message" => "Booking availability sent successfully"]
+            : ["message" => "Some bookings failed", "failedBookings" => $failedBookings];
     }
 }
+
+
+?>
