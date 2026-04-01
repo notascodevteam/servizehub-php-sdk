@@ -2,10 +2,14 @@
 
 ## Install
 Install using Composer:
+
+```bash
 composer require servizehub/servizehub-sdk
+```
 
 ## Usage
 
+```php
 <?php
 
 require 'vendor/autoload.php';
@@ -21,7 +25,7 @@ $result = $client->sendBooking(
 );
 
 print_r($result);
-
+```
 
 ## 📩 License
 
