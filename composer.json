@@ -1,0 +1,19 @@
+{
+    "name": "servizehub/servizehub-sdk",
+    "description": "Official PHP SDK for ServizeHub",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Hariraghav S"
+        }
+    ],
+    "autoload": {
+        "classmap": [
+            "src/Client.php"
+        ]
+    },
+    "require": {
+        "php": ">=8.0"
+    }
+}
