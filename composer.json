@@ -9,9 +9,9 @@
         }
     ],
     "autoload": {
-        "classmap": [
-            "src/Client.php"
-        ]
+        "psr-4": {
+            "ServizeHub\\": "src/"
+        }
     },
     "require": {
         "php": ">=8.0"

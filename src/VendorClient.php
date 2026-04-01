@@ -1,5 +1,7 @@
 <?php
 
+namespace ServizeHub;
+
 class VendorClient {
     private $apiKey;
 
@@ -12,7 +14,7 @@ class VendorClient {
 
     // Validate date in YYYY-MM-DD format
     private function isValidDate($date) {
-        $d = DateTime::createFromFormat('Y-m-d', $date);
+        $d = \DateTime::createFromFormat('Y-m-d', $date);
         return $d && $d->format('Y-m-d') === $date;
     }
 
